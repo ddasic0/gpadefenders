@@ -13,11 +13,11 @@ from src.settings import (
     GRID_LINE_COLOR,
     UI_BG,
     TEXT_COLOR,
+    TOWER_TYPES,
 )
 from src.managers.grid import GridMap
-from src.entities.enemy import Quiz
-from src.entities.tower import create_tower
-from src.entities.projectile import Projectile
+from src.managers.wave_manager import WaveManager
+from src.managers.game_manager import GameManager
 
 
 def main() -> None:
@@ -28,11 +28,11 @@ def main() -> None:
     font = pygame.font.SysFont(None, 24)
 
     grid_map = GridMap()
-    towers = []
-    enemies = []
-    projectiles = []
-    spawn_timer = 0.0
-    gpa = 10.0
+    wave_manager = WaveManager(grid_map.waypoints)
+    game_manager = GameManager()
+
+    selected_tower_type = "coffee"
+    tower_types_list = list(TOWER_TYPES.keys())
 
     running = True
     while running:
@@ -40,36 +40,22 @@ def main() -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                if event.key == pygame.K_SPACE and not wave_manager.wave_active:
+                    game_manager.add_enemies(wave_manager.spawn_wave())
+                for i, tower_type in enumerate(tower_types_list):
+                    if event.key == pygame.K_1 + i:
+                        selected_tower_type = tower_type
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 gx = event.pos[0] // TILE_SIZE
                 gy = event.pos[1] // TILE_SIZE
                 if grid_map.can_place_tower(gx, gy):
-                    towers.append(create_tower("coffee", gx, gy))
-                    grid_map.place_tower(gx, gy)
+                    if game_manager.place_tower(selected_tower_type, gx, gy):
+                        grid_map.place_tower(gx, gy)
 
-        spawn_timer += dt
-        if spawn_timer >= 1.2:
-            spawn_timer = 0.0
-            enemies.append(Quiz(grid_map.waypoints))
-
-        for enemy in enemies:
-            enemy.update(dt)
-            if enemy.reached_end and enemy.alive:
-                gpa -= enemy.gpa_damage
-                enemy.alive = False
-
-        for tower in towers:
-            shot = tower.update(dt, enemies)
-            if shot:
-                projectiles.append(Projectile(**shot))
-
-        for projectile in projectiles:
-            projectile.update(dt)
-
-        enemies = [e for e in enemies if e.alive]
-        projectiles = [p for p in projectiles if p.alive]
+        game_manager.update(dt, wave_manager)
 
         screen.fill(GRASS_COLOR)
         for row in range(GRID_ROWS):
@@ -79,17 +65,22 @@ def main() -> None:
                     pygame.draw.rect(screen, PATH_COLOR, rect)
                 pygame.draw.rect(screen, GRID_LINE_COLOR, rect, 1)
 
-        for tower in towers:
+        for tower in game_manager.towers:
             tower.draw(screen)
-        for enemy in enemies:
+        for enemy in game_manager.enemies:
             enemy.draw(screen)
-        for projectile in projectiles:
+        for projectile in game_manager.projectiles:
             projectile.draw(screen)
 
         ui_rect = pygame.Rect(0, GRID_ROWS * TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT - GRID_ROWS * TILE_SIZE)
         pygame.draw.rect(screen, UI_BG, ui_rect)
-        text = font.render(f"LMB place coffee tower | GPA {gpa:.2f}", True, TEXT_COLOR)
-        screen.blit(text, (12, GRID_ROWS * TILE_SIZE + 14))
+
+        txt = (
+            f"GPA {game_manager.gpa:.2f} | Energy {game_manager.energy} | "
+            f"Wave {wave_manager.wave} | Selected {TOWER_TYPES[selected_tower_type]['name']} | "
+            f"SPACE start wave"
+        )
+        screen.blit(font.render(txt, True, TEXT_COLOR), (12, GRID_ROWS * TILE_SIZE + 14))
 
         pygame.display.flip()
 

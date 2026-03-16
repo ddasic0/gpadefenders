@@ -12,8 +12,10 @@ class Tower(Entity):
         super().__init__(px, py)
         cfg = TOWER_TYPES[tower_type]
         self.tower_type = tower_type
+        self.name = cfg["name"]
         self.grid_x = grid_x
         self.grid_y = grid_y
+        self.cost = int(cfg["cost"])
         self.damage = float(cfg["damage"])
         self.range = float(cfg["range"])
         self.fire_rate = float(cfg["fire_rate"])
@@ -56,12 +58,7 @@ class Tower(Entity):
         pygame.draw.rect(screen, BLACK, rect, 2)
 
 
-class CoffeeTower(Tower):
-    def __init__(self, grid_x: int, grid_y: int):
-        super().__init__("coffee", grid_x, grid_y)
-
-
 def create_tower(tower_type: str, grid_x: int, grid_y: int) -> Tower:
-    if tower_type != "coffee":
+    if tower_type not in TOWER_TYPES:
         raise ValueError(f"Unknown tower type: {tower_type}")
-    return CoffeeTower(grid_x, grid_y)
+    return Tower(tower_type, grid_x, grid_y)

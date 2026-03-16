@@ -61,8 +61,3 @@ class Enemy(Entity):
         hp_ratio = self.hp / self.max_hp if self.max_hp else 0
         pygame.draw.rect(screen, RED, (int(self.x) - bar_w // 2, int(self.y) - 18, bar_w, 4))
         pygame.draw.rect(screen, GREEN, (int(self.x) - bar_w // 2, int(self.y) - 18, int(bar_w * hp_ratio), 4))
-
-
-class Quiz(Enemy):
-    def __init__(self, waypoints: list[tuple[int, int]]):
-        super().__init__("quiz", waypoints)
