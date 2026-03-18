@@ -3,6 +3,7 @@ import pygame
 from src.entities.entity import Entity
 from src.entities.enemy import Enemy
 from src.settings import TOWER_TYPES, BLACK, TILE_SIZE
+from src.utils.asset_loader import get_tower_sprite, has_tower_sprites
 
 
 class Tower(Entity):
@@ -53,6 +54,12 @@ class Tower(Entity):
         }
 
     def draw(self, screen: pygame.Surface) -> None:
+        if has_tower_sprites():
+            sprite = get_tower_sprite(self.tower_type, (TILE_SIZE, TILE_SIZE))
+            if sprite:
+                screen.blit(sprite, (int(self.x) - TILE_SIZE // 2, int(self.y) - TILE_SIZE // 2))
+                return
+
         rect = pygame.Rect(int(self.x) - self.size, int(self.y) - self.size, self.size * 2, self.size * 2)
         pygame.draw.rect(screen, self.color, rect)
         pygame.draw.rect(screen, BLACK, rect, 2)

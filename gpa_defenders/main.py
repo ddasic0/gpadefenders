@@ -27,6 +27,13 @@ from src.ui.screens import (
     show_mode_select_screen,
     show_map_select_screen,
 )
+from src.utils.asset_loader import (
+    init_tower_sprites,
+    init_ground_tiles,
+    init_enemy_sprites,
+    get_grass_tile,
+    get_path_tile,
+)
 
 
 def run_game(screen: pygame.Surface, clock: pygame.time.Clock, map_id: str, multiplayer: bool = False) -> str:
@@ -35,6 +42,10 @@ def run_game(screen: pygame.Surface, clock: pygame.time.Clock, map_id: str, mult
     grid_map = GridMap(map_id=map_id)
     wave_manager = WaveManager(grid_map.waypoints)
     game_manager = GameManager()
+
+    init_tower_sprites()
+    init_ground_tiles(TILE_SIZE)
+    init_enemy_sprites()
 
     selected_tower_type = "coffee"
     tower_types_list = list(TOWER_TYPES.keys())
@@ -72,8 +83,17 @@ def run_game(screen: pygame.Surface, clock: pygame.time.Clock, map_id: str, mult
         for row in range(GRID_ROWS):
             for col in range(GRID_COLS):
                 rect = pygame.Rect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                tile_idx = row * GRID_COLS + col
                 if grid_map.grid[row][col] == 1:
-                    pygame.draw.rect(screen, PATH_COLOR, rect)
+                    path_tile = get_path_tile(tile_idx)
+                    if path_tile:
+                        screen.blit(path_tile, rect)
+                    else:
+                        pygame.draw.rect(screen, PATH_COLOR, rect)
+                else:
+                    grass_tile = get_grass_tile(tile_idx)
+                    if grass_tile:
+                        screen.blit(grass_tile, rect)
                 pygame.draw.rect(screen, GRID_LINE_COLOR, rect, 1)
 
         for tower in game_manager.towers:
