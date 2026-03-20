@@ -33,11 +33,7 @@ MAP_DEFINITIONS = {
     "campus_s": {
         "name": "Campus S-Route",
         "waypoint_cells": [(-1, 2), (4, 2), (4, 5), (10, 5), (10, 2), (GRID_COLS, 2)],
-    },
-    "library_rush": {
-        "name": "Library Rush",
-        "waypoint_cells": [(-1, 4), (5, 4), (5, 2), (9, 2), (9, 4), (GRID_COLS, 4)],
-    },
+    }
 }
 
 TOWER_TYPES = {

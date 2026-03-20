@@ -2,8 +2,7 @@
 import math
 import pygame
 from src.entities.entity import Entity
-from src.settings import ENEMY_TYPES, RED, GREEN, BLACK
-from src.utils.asset_loader import get_enemy_frame
+from src.settings import ENEMY_TYPES, RED, GREEN
 
 
 class Enemy(Entity):
@@ -23,7 +22,6 @@ class Enemy(Entity):
         self.waypoints = list(waypoints)
         self.waypoint_index = 0
         self.reached_end = False
-        self.anim_time = 0.0
 
     def take_damage(self, damage: float) -> None:
         self.hp -= damage
@@ -35,7 +33,6 @@ class Enemy(Entity):
         if not self.alive or self.reached_end:
             return
 
-        self.anim_time += dt
         remaining = self.speed * dt
         while remaining > 0 and self.waypoint_index < len(self.waypoints):
             tx, ty = self.waypoints[self.waypoint_index]
@@ -59,16 +56,7 @@ class Enemy(Entity):
     def draw(self, screen: pygame.Surface) -> None:
         if not self.alive:
             return
-
-        sprite = get_enemy_frame(self.enemy_type, self.anim_time)
-        if sprite:
-            size = self.radius * 2 + 6
-            scaled = pygame.transform.smoothscale(sprite, (size, size))
-            screen.blit(scaled, (int(self.x) - size // 2, int(self.y) - size // 2))
-        else:
-            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
-            pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), self.radius, 2)
-
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
         bar_w = 26
         hp_ratio = self.hp / self.max_hp if self.max_hp else 0
         pygame.draw.rect(screen, RED, (int(self.x) - bar_w // 2, int(self.y) - 18, bar_w, 4))
