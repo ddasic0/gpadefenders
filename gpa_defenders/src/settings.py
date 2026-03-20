@@ -33,7 +33,11 @@ MAP_DEFINITIONS = {
     "campus_s": {
         "name": "Campus S-Route",
         "waypoint_cells": [(-1, 2), (4, 2), (4, 5), (10, 5), (10, 2), (GRID_COLS, 2)],
-    }
+    },
+    "library_rush": {
+        "name": "Library Rush",
+        "waypoint_cells": [(-1, 4), (5, 4), (5, 2), (9, 2), (9, 4), (GRID_COLS, 4)],
+    },
 }
 
 TOWER_TYPES = {
@@ -76,6 +80,43 @@ TOWER_TYPES = {
         "projectile_speed": 420,
         "color": YELLOW,
         "projectile_color": YELLOW,
+    },
+}
+
+TOWER_UPGRADES = {
+    "coffee": {
+        "espresso": {
+            "name": "Espresso",
+            "cost": 320,
+            "damage_multiplier": 1.35,
+            "fire_rate_multiplier": 1.25,
+        }
+    },
+    "study_group": {},
+    "tutor": {},
+    "energy_drink": {},
+}
+
+PERK_WAVE_INTERVAL = 3
+PERK_OFFER_COUNT = 3
+PERKS = {
+    "focus_mode": {
+        "name": "Focus Mode",
+        "description": "+10% damage",
+        "effects": {"damage_multiplier": 1.10},
+        "max_stacks": 3,
+    },
+    "rapid_revision": {
+        "name": "Rapid Revision",
+        "description": "+12% fire rate",
+        "effects": {"fire_rate_multiplier": 1.12},
+        "max_stacks": 3,
+    },
+    "bonus_budget": {
+        "name": "Bonus Budget",
+        "description": "+120 energy now",
+        "effects": {"instant_energy": 120},
+        "max_stacks": 4,
     },
 }
 

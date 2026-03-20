@@ -3,6 +3,7 @@ import pygame
 from src.entities.entity import Entity
 from src.entities.enemy import Enemy
 from src.settings import TOWER_TYPES, BLACK, TILE_SIZE
+from src.utils.asset_loader import get_tower_sprite, has_tower_sprites
 
 
 class Tower(Entity):
@@ -24,6 +25,25 @@ class Tower(Entity):
         self.color = cfg["color"]
         self.projectile_color = cfg["projectile_color"]
         self.size = TILE_SIZE // 2 - 6
+        self.applied_upgrades: set[str] = set()
+
+    def has_upgrade(self, upgrade_id: str) -> bool:
+        return upgrade_id in self.applied_upgrades
+
+    def apply_upgrade(self, upgrade_id: str, upgrade_config: dict) -> bool:
+        if self.has_upgrade(upgrade_id):
+            return False
+        fire_rate_mul = upgrade_config.get("fire_rate_multiplier")
+        if fire_rate_mul is not None:
+            self.fire_rate *= float(fire_rate_mul)
+        damage_mul = upgrade_config.get("damage_multiplier")
+        if damage_mul is not None:
+            self.damage *= float(damage_mul)
+        range_bonus = upgrade_config.get("range_bonus")
+        if range_bonus is not None:
+            self.range += float(range_bonus)
+        self.applied_upgrades.add(upgrade_id)
+        return True
 
     def find_target(self, enemies: list[Enemy]) -> Enemy | None:
         closest = None
@@ -53,6 +73,12 @@ class Tower(Entity):
         }
 
     def draw(self, screen: pygame.Surface) -> None:
+        if has_tower_sprites():
+            sprite = get_tower_sprite(self.tower_type, (TILE_SIZE, TILE_SIZE))
+            if sprite:
+                screen.blit(sprite, (int(self.x) - TILE_SIZE // 2, int(self.y) - TILE_SIZE // 2))
+                return
+
         rect = pygame.Rect(int(self.x) - self.size, int(self.y) - self.size, self.size * 2, self.size * 2)
         pygame.draw.rect(screen, self.color, rect)
         pygame.draw.rect(screen, BLACK, rect, 2)
