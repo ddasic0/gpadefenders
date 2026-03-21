@@ -1,5 +1,6 @@
 
 import pygame
+import math
 from src.entities.entity import Entity
 from src.entities.enemy import Enemy
 from src.settings import TOWER_TYPES, BLACK, TILE_SIZE
@@ -7,29 +8,191 @@ from src.utils.asset_loader import get_tower_sprite, has_tower_sprites
 
 
 class Tower(Entity):
+    _next_instance_id = 1
+
     def __init__(self, tower_type: str, grid_x: int, grid_y: int):
-        px = grid_x * TILE_SIZE + TILE_SIZE // 2
-        py = grid_y * TILE_SIZE + TILE_SIZE // 2
-        super().__init__(px, py)
-        cfg = TOWER_TYPES[tower_type]
+                                          
+        pixel_x = grid_x * TILE_SIZE + TILE_SIZE // 2
+        pixel_y = grid_y * TILE_SIZE + TILE_SIZE // 2
+        super().__init__(pixel_x, pixel_y)
+        self.instance_id = Tower._next_instance_id
+        Tower._next_instance_id += 1
+
+        config = TOWER_TYPES[tower_type]
         self.tower_type = tower_type
-        self.name = cfg["name"]
+        self.name = config["name"]
+        self.costs = config.get("costs", {"energy": config["cost"]})
+        self.energy_cost = self.costs.get("energy", 0)
+                                                            
+        self.cost = self.energy_cost
+        self.damage = config["damage"]
+        self.range = config["range"]
+        self.fire_rate = config["fire_rate"]
+        self.base_damage = self.damage
+        self.base_range = self.range
+        self.base_fire_rate = self.fire_rate
+        self.color = config["color"]
+        self.projectile_color = config["projectile_color"]
+        self.projectile_speed = config["projectile_speed"]
+
         self.grid_x = grid_x
         self.grid_y = grid_y
-        self.cost = int(cfg["cost"])
-        self.damage = float(cfg["damage"])
-        self.range = float(cfg["range"])
-        self.fire_rate = float(cfg["fire_rate"])
         self.fire_cooldown = 0.0
-        self.projectile_speed = float(cfg["projectile_speed"])
-        self.color = cfg["color"]
-        self.projectile_color = cfg["projectile_color"]
-        self.size = TILE_SIZE // 2 - 6
+        self.target = None
+        self.size = TILE_SIZE // 2 - 4
+        self.applied_upgrades: set[str] = set()
+        self.is_broken = False
+
+    def find_target(self, enemies: list[Enemy]) -> Enemy | None:
+        closest = None
+        closest_dist = float("inf")
+
+        for enemy in enemies:
+            if not enemy.alive or enemy.reached_end:
+                continue
+            dist = self.distance_to(enemy)
+            if dist <= self.range and dist < closest_dist:
+                closest = enemy
+                closest_dist = dist
+
+        return closest
+
+    def can_fire(self) -> bool:
+        return self.fire_cooldown <= 0 and self.target is not None
+
+    def fire(self) -> dict | None:
+        if not self.can_fire():
+            return None
+
+        self.fire_cooldown = 1.0 / self.fire_rate
+
+        return {
+            "x": self.x,
+            "y": self.y,
+            "target": self.target,
+            "damage": self.damage,
+            "color": self.projectile_color,
+            "speed": self.projectile_speed,
+            "tower_type": self.tower_type,
+            "slow_source_id": self.instance_id,
+        }
+
+    def update(self, dt: float, enemies: list[Enemy] | None = None) -> dict | None:
+        if self.is_broken:
+            return None
+
+        self.fire_cooldown -= dt
+
+        if enemies:
+            self.target = self.find_target(enemies)
+
+        return self.fire()
+
+    def has_upgrade(self, upgrade_id: str) -> bool:
+        return upgrade_id in self.applied_upgrades
+
+    def apply_upgrade(self, upgrade_id: str, upgrade_config: dict) -> bool:
+        if self.has_upgrade(upgrade_id):
+            return False
+
+        fire_rate_multiplier = upgrade_config.get("fire_rate_multiplier")
+        if fire_rate_multiplier is not None:
+            self.fire_rate *= fire_rate_multiplier
+
+        damage_multiplier = upgrade_config.get("damage_multiplier")
+        if damage_multiplier is not None:
+            self.damage *= damage_multiplier
+
+                                                                            
+        efficiency_multiplier = upgrade_config.get("efficiency_multiplier")
+        if efficiency_multiplier is not None:
+            self.damage *= efficiency_multiplier
+
+        range_bonus = upgrade_config.get("range_bonus")
+        if range_bonus is not None:
+            self.range += range_bonus
+
+        self.applied_upgrades.add(upgrade_id)
+        return True
+
+    def draw(self, screen: pygame.Surface) -> None:
+                                     
+        if has_tower_sprites():
+            sprite_size = (TILE_SIZE, TILE_SIZE)
+            sprite = get_tower_sprite(self.tower_type, sprite_size)
+            if sprite:
+                screen.blit(sprite, (int(self.x) - TILE_SIZE // 2,
+                                     int(self.y) - TILE_SIZE // 2))
+                                                        
+                from main import draw_tower_icon
+                draw_tower_icon(screen, self.tower_type,
+                                int(self.x), int(self.y),
+                                self.size)
+                return
+
+                                      
+        rect = pygame.Rect(
+            int(self.x) - self.size,
+            int(self.y) - self.size,
+            self.size * 2,
+            self.size * 2,
+        )
+        pygame.draw.rect(screen, self.color, rect)
+        pygame.draw.rect(screen, BLACK, rect, 2)
+
+    def draw_range(self, screen: pygame.Surface) -> None:
+        range_surface = pygame.Surface(
+            (self.range * 2, self.range * 2), pygame.SRCALPHA
+        )
+        pygame.draw.circle(
+            range_surface, (255, 255, 255, 40),
+            (self.range, self.range), self.range
+        )
+        screen.blit(range_surface, (int(self.x) - self.range, int(self.y) - self.range))
+
+
+class CoffeeTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("coffee", grid_x, grid_y)
+
+
+class StudyGroupTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("study_group", grid_x, grid_y)
+        config = TOWER_TYPES["study_group"]
+        self.slow_factor = config["slow_factor"]
+        self.slow_duration = config["slow_duration"]
+
+    def fire(self) -> dict | None:
+        result = super().fire()
+        if result:
+            result["slow_factor"] = self.slow_factor
+            result["slow_duration"] = self.slow_duration
+        return result
+
+class TutorTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("tutor", grid_x, grid_y)
+
+class EnergyDrinkTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("energy_drink", grid_x, grid_y)
+
+class ChatGPTTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("chatgpt", grid_x, grid_y)
 
     def find_target(self, enemies: list[Enemy]) -> Enemy | None:
         closest = None
         closest_dist = float("inf")
         for enemy in enemies:
+            if enemy.enemy_type not in {"quiz", "huiswerk"}:
+                continue
             if not enemy.alive or enemy.reached_end:
                 continue
             dist = self.distance_to(enemy)
@@ -38,34 +201,75 @@ class Tower(Entity):
                 closest_dist = dist
         return closest
 
-    def update(self, dt: float, enemies: list[Enemy]) -> dict | None:
-        self.fire_cooldown -= dt
-        target = self.find_target(enemies)
-        if target is None or self.fire_cooldown > 0:
-            return None
-        self.fire_cooldown = 1.0 / self.fire_rate
-        return {
-            "x": self.x,
-            "y": self.y,
-            "target": target,
-            "damage": self.damage,
-            "speed": self.projectile_speed,
-            "color": self.projectile_color,
-        }
 
-    def draw(self, screen: pygame.Surface) -> None:
-        if has_tower_sprites():
-            sprite = get_tower_sprite(self.tower_type, (TILE_SIZE, TILE_SIZE))
-            if sprite:
-                screen.blit(sprite, (int(self.x) - TILE_SIZE // 2, int(self.y) - TILE_SIZE // 2))
-                return
+class PenPaperTower(Tower):
 
-        rect = pygame.Rect(int(self.x) - self.size, int(self.y) - self.size, self.size * 2, self.size * 2)
-        pygame.draw.rect(screen, self.color, rect)
-        pygame.draw.rect(screen, BLACK, rect, 2)
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("pen_paper", grid_x, grid_y)
+
+class MotivatieTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("motivatie", grid_x, grid_y)
+        self.waves_until_break = 3
+        self.completed_waves = 0
+
+    def find_target(self, enemies: list[Enemy]) -> Enemy | None:
+        closest = None
+        closest_dist = float("inf")
+        for enemy in enemies:
+            if enemy.enemy_type != "attendance":
+                continue
+            if not enemy.alive or enemy.reached_end:
+                continue
+            dist = self.distance_to(enemy)
+                                                                                
+            if dist < closest_dist:
+                closest = enemy
+                closest_dist = dist
+        return closest
+
+    def on_wave_completed(self) -> None:
+        if self.is_broken or self.has_upgrade("lock_in"):
+            return
+        self.completed_waves += 1
+        if self.completed_waves >= self.waves_until_break:
+            self.is_broken = True
+
+    def repair(self) -> None:
+        self.is_broken = False
+        self.completed_waves = 0
+
+    def apply_upgrade(self, upgrade_id: str, upgrade_config: dict) -> bool:
+        upgraded = super().apply_upgrade(upgrade_id, upgrade_config)
+        if upgraded and upgrade_id == "lock_in":
+            self.is_broken = False
+        return upgraded
 
 
+class HoorcollegesTower(Tower):
+
+    def __init__(self, grid_x: int, grid_y: int):
+        super().__init__("hoorcolleges", grid_x, grid_y)
+
+    def update(self, dt: float, enemies: list[Enemy] | None = None) -> dict | None:
+        return None
+
+
+                                        
 def create_tower(tower_type: str, grid_x: int, grid_y: int) -> Tower:
-    if tower_type not in TOWER_TYPES:
-        raise ValueError(f"Unknown tower type: {tower_type}")
-    return Tower(tower_type, grid_x, grid_y)
+    tower_classes = {
+        "coffee": CoffeeTower,
+        "study_group": StudyGroupTower,
+        "tutor": TutorTower,
+        "energy_drink": EnergyDrinkTower,
+        "chatgpt": ChatGPTTower,
+        "pen_paper": PenPaperTower,
+        "motivatie": MotivatieTower,
+        "hoorcolleges": HoorcollegesTower,
+    }
+
+    if tower_type not in tower_classes:
+        raise ValueError(f"Onbekend toren type: {tower_type}")
+
+    return tower_classes[tower_type](grid_x, grid_y)

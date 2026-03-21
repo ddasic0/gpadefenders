@@ -1,43 +1,60 @@
 
-import math
 import pygame
+import math
+from src.entities.entity import Entity
+from src.entities.enemy import Enemy
+from src.settings import BLACK
 
 
-class Projectile:
-    def __init__(self, x: float, y: float, target, damage: float, speed: float, color: tuple[int, int, int]):
-        self.x = float(x)
-        self.y = float(y)
+class Projectile(Entity):
+
+    def __init__(self, x: float, y: float, target: Enemy,
+                 damage: float, speed: float, color: tuple,
+                 slow_factor: float = 0.0, slow_duration: float = 0.0,
+                 slow_source_id: int | None = None):
+        super().__init__(x, y)
         self.target = target
-        self.damage = float(damage)
-        self.speed = float(speed)
+        self.damage = damage
+        self.speed = speed
         self.color = color
+        self.slow_factor = slow_factor
+        self.slow_duration = slow_duration
+        self.slow_source_id = slow_source_id
         self.radius = 4
-        self.alive = True
 
     def update(self, dt: float) -> None:
         if not self.alive:
             return
+
+                                      
         if not self.target.alive:
             self.alive = False
             return
 
         dx = self.target.x - self.x
         dy = self.target.y - self.y
-        dist = math.hypot(dx, dy)
-        if dist <= self.radius + self.target.radius:
+        distance = math.sqrt(dx * dx + dy * dy)
+
+                   
+        if distance < self.target.radius:
             self.target.take_damage(self.damage)
+            if self.slow_factor > 0:
+                self.target.apply_slow(
+                    self.slow_factor,
+                    self.slow_duration,
+                    self.slow_source_id,
+                )
             self.alive = False
             return
 
-        step = self.speed * dt
-        if step >= dist:
-            self.target.take_damage(self.damage)
-            self.alive = False
-            return
-
-        self.x += (dx / dist) * step
-        self.y += (dy / dist) * step
+                
+        move = self.speed * dt
+        self.x += (dx / distance) * move
+        self.y += (dy / distance) * move
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.alive:
-            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+        if not self.alive:
+            return
+
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+        pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), self.radius, 1)
