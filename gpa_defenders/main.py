@@ -183,6 +183,9 @@ class Game:
         self.clock = clock if clock is not None else pygame.time.Clock()
         self.font = pygame.font.SysFont(None, 28)
         self.small_font = pygame.font.SysFont(None, 22)
+        self._start_hint_text = "start chatGPT om het huiswerk snel te maken"
+        self._start_hint_duration_ms = 3000
+        self._game_start_ticks = pygame.time.get_ticks()
 
         if map_id not in MAP_DEFINITIONS:
             map_id = DEFAULT_MAP_ID
@@ -784,6 +787,7 @@ class Game:
         self._draw_ui()
         self._draw_speed_btn()
         self._draw_pause_btn()
+        self._draw_start_hint()
 
                                             
         if self.game_manager.has_pending_perk_choice():
@@ -801,6 +805,25 @@ class Game:
         bx, by = self.pause_btn.x + 11, self.pause_btn.y + 10
         pygame.draw.rect(self.screen, WHITE, (bx, by, 6, 18))
         pygame.draw.rect(self.screen, WHITE, (bx + 10, by, 6, 18))
+
+    def _draw_start_hint(self) -> None:
+        if pygame.time.get_ticks() - self._game_start_ticks >= self._start_hint_duration_ms:
+            return
+
+        hint_font = pygame.font.SysFont(None, 30, bold=True)
+        hint_surf = hint_font.render(self._start_hint_text, True, (245, 240, 225))
+
+        pad_x, pad_y = 14, 8
+        box_w = hint_surf.get_width() + pad_x * 2
+        box_h = hint_surf.get_height() + pad_y * 2
+        box_x = SCREEN_WIDTH // 2 - box_w // 2
+        box_y = GRID_ROWS * TILE_SIZE - box_h - 6
+
+        box = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        box.fill((15, 16, 22, 200))
+        self.screen.blit(box, (box_x, box_y))
+        pygame.draw.rect(self.screen, (220, 205, 150), (box_x, box_y, box_w, box_h), 2, border_radius=7)
+        self.screen.blit(hint_surf, (box_x + pad_x, box_y + pad_y))
 
     def _draw_perk_overlay(self) -> None:
         choices = self.game_manager.get_pending_perk_choices()
